@@ -5,9 +5,6 @@ use warnings;
 #We can remove at any time
 my $option = $ARGV[0];
 
-
-
-
 if ($option eq "-f")
 {
 	fmemSetup();
@@ -16,11 +13,16 @@ elsif ($option eq "-l")
 {
 	limeSetup();
 }
+elsif ($option eq "-i")
+{
+	print "Reading your image of memory\n";
+}
 elsif ($option eq "-h")
 {
 	print "Usage:  'perl MEMcoin.pl <argument>'\n";
 	print "Argument -f for FMEM Installation\n";
 	print "Argument -l for LiME Installation\n";
+	print "Argument -i to pass an existing memory image to the tool\n";
 	exit;
 }
 else
@@ -47,7 +49,6 @@ sub fmemSetup{
 	chdir("../");
 	system("mkdir InvestigationInfo");
 	chdir("InvestigationInfo");
-	system("mkdir InvestigationInfo");
 	system("pwd");
 
 
@@ -62,12 +63,11 @@ sub limeSetup{
 
 	# Revision - if fmem install fails due to kernal headers report 	failure
 	#system("./run.sh");
+
 	chdir("../");
 	system("mkdir InvestigationInfo");
 	chdir("InvestigationInfo");
-	system("mkdir InvestigationInfo");
 	system("pwd");
-
 
 }
 
@@ -81,22 +81,58 @@ sub searchForWallets{
 sub imageMemory {
 
 	#get passed arguments
-	my $option = @_;
+	my $input = @_;
 	#grab an image
-	print "Grabbing an Image of Memory...\n";
+	my $option = $_[chomp($input)];
 	
 	if ($option eq "-f")
 	{
+		print "Grabbing an Image of Memory...\n";
 		system("dd if=/dev/fmem of=investigatedcompmem");
 		print "MEMCoin is making sense of all this data...\n";
+		system("cat investigatedcompmem | strings > memstrings");
 	}
 	elsif ($option eq "-l")
 	{
+
+		my $kofile;
+		chdir("..");
 		chdir("src/");
-		system("insmod lime-2.6.32-431.el6.x86_64.ko path=investigatedcompmem format=lime");
+		system("pwd");
+		
+		#find the .ko file made by lime
+		$kofile = `ls | grep \*.ko`;
+		chomp($kofile);
+
+		system("insmod $kofile path=../InvestigationInfo/investigatedcompmem.lime format=lime");
+		system("rmmod lime");
 		print "MEMCoin is making sense of all this data...\n";
+		system("pwd");		
+		chdir("..");
+		system("pwd");
+		chdir("InvestigationInfo");
+		system("cat investigatedcompmem.lime | strings > memstrings");
 	}
-	system("cat investigatedcompmem | strings > memstrings");
+	elsif ($option eq "-i")
+	{
+
+		system("mkdir InvestigationInfo");
+		chdir("InvestigationInfo");
+		system("pwd");
+
+		if ($ARGV[1])
+		{
+			print "Investing the memory image passed to MEMCoin...\n";
+			system("cat $ARGV[1] | strings > memstrings");
+		}
+		else
+		{
+		
+			print "Failed to pass memory image file name after -i option\n";
+			exit;
+		
+		}
+	}
 	
 }
 
@@ -128,7 +164,8 @@ sub memorySearch{
 	   }
 
 	  #regex not listed
-	   if($line =~ '')
+	  #added by sean
+	   if($line =~ '^\w{52}\s\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z')
 	   {
 		print FILE "$line \n";
 		$flag =3;
